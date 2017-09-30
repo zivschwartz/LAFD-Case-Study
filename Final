@@ -1,0 +1,54 @@
+---
+title: "Final"
+author: "Ziv Schwartz"
+date: "5/24/2017"
+output: html_document
+---
+```{r}
+library(readr)
+testing <- read.csv("~/Downloads/testing.without.response.csv")
+training <- read.csv("~/Downloads/lafdtraining.csv")
+
+colSums(is.na(training))
+colSums(is.na(testing))
+
+training$First.in.District[is.na(training$First.in.District)] <- mean(na.omit(training$First.in.District))
+training$Dispatch.Sequence[is.na(training$Dispatch.Sequence)] <- mean(na.omit(training$Dispatch.Sequence))
+training$elapsed_time[is.na(training$elapsed_time)] <- mean(na.omit(training$elapsed_time))
+testing$Dispatch.Sequence[is.na(testing$Dispatch.Sequence)] <- mean(na.omit(testing$Dispatch.Sequence))
+
+colSums(is.na(training))
+colSums(is.na(testing))
+
+Training <- data.matrix(training)
+Testing <- data.matrix(testing)
+```
+
+#GBM boosting
+```{r}
+library(gbm)
+set.seed(9596)
+boost.train=gbm(elapsed_time~First.in.District + Dispatch.Sequence + Dispatch.Status + Unit.Type + PPE.Level, data=training, distribution="gaussian", n.trees=30, interaction.depth=4, shrinkage=0.2)
+summary(boost.train)
+pred.boost=predict(boost.train, newdata=testing, n.trees=10)
+
+row.id <- as.integer(testing$row.id)
+prediction <- as.integer(pred.boost)
+Final <- cbind(row.id, prediction)
+write.csv(Final, file = "/Users/zivschwartz1/Desktop/Final.csv", row.names = F)
+```
+
+#XGBoost
+```{r}
+library(xgboost)
+str(training)
+xgb <- xgboost(data = Training, label = training$elapsed_time, max.deph = 2, nthread = 2, nround = 44, eta = 0.3, max.depth = 10, min.child.weight = 1)
+
+preds <- predict(xgb, Testing)
+
+row.id <- as.integer(testing$row.id)
+prediction <- as.integer(preds)
+Final <- cbind(row.id, prediction)
+write.csv(Final, file = "/Users/zivschwartz1/Desktop/Final.csv", row.names = F)
+```
+
